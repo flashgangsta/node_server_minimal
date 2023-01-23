@@ -5,6 +5,7 @@ const FS = require("fs").promises;
 
 const HOST = "0.0.0.0";
 const PORT = 3300;
+const SRC_DIR = "src/";
 const routes = {
 	"/": "index",
 }
@@ -20,7 +21,12 @@ const filesContentTypeMap = {
 	".ttf": "application/octet-stream"
 };
 
+const pages = {
+	index: null
+}
+
 let server;
+let currentDir;
 
 function requestListener(request, response) {
 	const requestURL = request.url;
@@ -49,24 +55,27 @@ function requestListener(request, response) {
 		let route = routes[`${parsedPath.dir}${parsedPath.name}`];
 
 		if(route) {
-			//page request
+			let page = pages[route];
+			currentDir = "/" + route;
 
-			switch (requestURL) {
-				case "/":
-					response.setHeader("Content-Type", "text/html");
-					response.writeHead(200);
-					response.end("Hi");
-					break;
-				default:
-					//404
-					response.setHeader("Content-Type", "text/html");
-					response.writeHead(302, {'Location': '/404/'});
-					response.end();
-
+			if(page) {
+				response.setHeader("Content-Type", "text/html");
+				response.writeHead(200);
+				response.end(page);
+			} else {
+				//404
+				response.setHeader("Content-Type", "text/html");
+				response.writeHead(302, {'Location': '/404/'});
+				response.end();
 			}
 		} else if(ext) {
 			//static file request
-			FS.readFile(__dirname + pathname)
+
+			if (parsedPath.dir.startsWith(currentDir)) {
+				pathname = `${parsedPath.dir.replace(currentDir, SRC_DIR)}/${parsedPath.base}`;
+			}
+
+			FS.readFile(`${__dirname}/${SRC_DIR}${pathname}`)
 				.then((data) => {
 					response.setHeader("Content-type", filesContentTypeMap[ext] || "text/plain");
 					response.end(data);
@@ -95,4 +104,26 @@ function startServer() {
 	});
 }
 
-startServer();
+function init() {
+	readPages().then(() => startServer());
+}
+
+async function readPages() {
+	const pageNames = Object.keys(pages);
+	for(let pageName of pageNames) {
+		pages[pageName] = await getHtml(`${SRC_DIR}${pageName}.html`);
+	}
+}
+
+async function getHtml(path) {
+	return await FS.readFile(__dirname + `/${path}`, "utf8")
+		.then((contents) => {
+			return contents;
+		})
+		.catch(err => {
+			console.error(`Could not read ${path} file: ${err}`);
+			process.exit(1);
+		});
+}
+
+init();
