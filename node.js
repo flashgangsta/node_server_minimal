@@ -39,7 +39,7 @@ function requestListener(request, response) {
 			switch (requestURL) {
 				case "/api/set_data/":
 					response.writeHead(200, {"Content-Type": "text/html"});
-					response.end("Success");
+					response.end(JSON.stringify({status: "ok"}));
 					break;
 				default:
 					response.writeHead(404, {"Content-Type": "text/html"});
@@ -90,11 +90,20 @@ function requestListener(request, response) {
 				case "/api/get_data/":
 					response.setHeader("Content-Type", "application/json");
 					response.writeHead(200);
-					response.end({data: "data"}.toString());
+					response.end(JSON.stringify({data: "data"}));
 					break;
+				default:
+					navigateTo404(response);
 			}
 		}
 	}
+}
+
+
+function navigateTo404(response) {
+	response.setHeader("Content-Type", "text/html");
+	response.writeHead(404, null);
+	response.end();
 }
 
 function startServer() {
